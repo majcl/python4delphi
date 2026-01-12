@@ -2644,6 +2644,70 @@ begin
 end;
 {$HINTS ON}
 
+type
+  TCompare<T> = function(const L, R: T): Integer;
+
+
+
+type
+TPyArgHelp = record
+  class function Check<T: class>(APyArg: PPyObject; const AArgName: string): T; static;
+end;
+
+class function TPyArgHelp.Check<T>(APyArg: PPyObject; const AArgName: string): T;
+var
+  PyObject: TPyObject;
+  Obj: TObject;
+begin
+  PyObject := PythonToDelphi(APyArg);
+  if not (PyObject is TPyDelphiObject) then
+    raise EPyValueError.CreateFmt('%s requires a Delphi %s object', [AArgName, T.ClassName]);
+
+  Obj := TPyDelphiObject(PyObject).DelphiObject;
+  if not (Obj is T) then
+    raise EPyValueError.CreateFmt('%s requires a Delphi %s object, but is type %s', [AArgName, T.ClassName, Obj.ClassName]);
+
+  Result := T(Obj);
+end;
+
+function ObjectTextToBinary_Wrapper(pself, args: PPyObject): PPyObject; cdecl;
+var
+  LInputPy, LOutputPy: PPyObject;
+  LInput, LOutput: TStream;
+begin
+  Result := nil;
+  with GetPythonEngine do
+  begin
+    if PyArg_ParseTuple(args, 'OO:ObjectTextToBinary', @LInputPy, @LOutputPy) = 0 then
+      RaiseError;
+
+    LInput := TPyArgHelp.Check<TStream>(LInputPy, 'ObjectTextToBinary');
+    LOutput := TPyArgHelp.Check<TStream>(LOutputPy, 'ObjectTextToBinary');
+
+    ObjectTextToBinary(LInput, LOutput);
+    Result := ReturnNone;
+  end;
+end;
+
+function ObjectBinaryToText_Wrapper(pself, args: PPyObject): PPyObject; cdecl;
+var
+  LInputPy, LOutputPy: PPyObject;
+  LInput, LOutput: TStream;
+begin
+  Result := nil;
+  with GetPythonEngine do
+  begin
+    if PyArg_ParseTuple(args, 'OO:ObjectTextToBinary', @LInputPy, @LOutputPy) = 0 then
+      RaiseError;
+
+    LInput := TPyArgHelp.Check<TStream>(LInputPy, 'ObjectTextToBinary');
+    LOutput := TPyArgHelp.Check<TStream>(LOutputPy, 'ObjectTextToBinary');
+
+    ObjectBinaryToText(LInput, LOutput);
+    Result := ReturnNone;
+  end;
+end;
+
 Type
   //  Used for class registration by TPyDelphiWrapper fClassRegister
   TRegisteredClass = class
@@ -5274,6 +5338,14 @@ begin
     RegisterFunction(PAnsiChar('Abort'), Abort_Wrapper,
        PAnsiChar('Abort()'#10 +
        'Raises a silent exception.'));
+    RegisterFunction(PAnsiChar('ObjectTextToBinary'), ObjectTextToBinary_Wrapper,
+       PAnsiChar('ObjectTextToBinary(Input, Output)'#10 +
+       'Converts object text format to binary format.'#10 +
+       'Input and Output must be TStream objects.'));
+    RegisterFunction(PAnsiChar('ObjectBinaryToText'), ObjectBinaryToText_Wrapper,
+       PAnsiChar('ObjectBinaryToText(Input, Output)'#10 +
+       'Converts object binary format to text format.'#10 +
+       'Input and Output must be TStream objects.'));
 
     for i := 0 to RegisteredUnits.Count-1 do
       RegisteredUnits[i].DefineFunctions(Self);
