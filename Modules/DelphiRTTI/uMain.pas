@@ -61,6 +61,9 @@ begin
   end;
 
   Result := gEngine.PyModuleDef_Init(@gModule.ModuleDef);
+  
+  // Types will be initialized lazily when first used (in NewWrappedRtti)
+  // This avoids assertion failures during module registration
 end;
 
 initialization
