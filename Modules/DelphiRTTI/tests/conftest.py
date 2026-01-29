@@ -39,7 +39,10 @@ IS_WINDOWS = platform.system() == 'Windows'
 @pytest.fixture
 def rtti():
     """DelphiRTTI module fixture."""
-    return DelphiRTTI
+    yield DelphiRTTI
+    # Explicit cleanup to avoid crashes during pytest teardown
+    import gc
+    gc.collect()
 
 
 @pytest.fixture
@@ -47,7 +50,10 @@ def vcl_module():
     """VCL module fixture."""
     if vcl is None:
         pytest.skip("delphivcl module not available")
-    return vcl
+    yield vcl
+    # Explicit cleanup
+    import gc
+    gc.collect()
 
 
 @pytest.fixture
@@ -55,4 +61,21 @@ def fmx_module():
     """FMX module fixture."""
     if fmx is None:
         pytest.skip("delphifmx module not available")
-    return fmx
+    yield fmx
+    # Explicit cleanup
+    import gc
+    gc.collect()
+
+
+def pytest_configure(config):
+    """Configure pytest to avoid crashes with native extension modules."""
+    # Disable assertion rewriting
+    config.option.assertmode = "plain"
+    # Enable faulthandler to identify crashes
+    try:
+        import faulthandler
+        faulthandler.enable()
+    except ImportError:
+        pass
+
+

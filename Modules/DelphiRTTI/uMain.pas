@@ -12,7 +12,8 @@ implementation
 uses
   System.SysUtils,
   WrapDelphi,
-  WrapDelphiRTTI;
+  WrapDelphiRTTI2;
+  // WrapDelphiRTTI;  // Temporarily excluded
 
 var
   gEngine: TPythonEngine = nil;
@@ -45,7 +46,7 @@ begin
       gEngine.LoadDllInExtensionModule;
 
       // Now it's safe to create TPythonType, call Py* APIs, etc.
-      RegisterDelphiRTTI(gModule, gDelphiWrapper);
+      RegisterDelphiRTTI2(gModule);
 
     except
       on E: Exception do

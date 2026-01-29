@@ -5,6 +5,8 @@ library DelphiRTTI;
 {$ENDIF ANDROID}
 
 
+
+
 { Important note about DLL memory management: ShareMem must be the
   first unit in your library's USES clause AND your project's (select
   Project-View Source) USES clause if your DLL exports any procedures or
@@ -24,9 +26,16 @@ library DelphiRTTI;
 uses
   System.SysUtils,
   uMain in 'uMain.pas',
-  WrapDelphiRTTI in 'WrapDelphiRTTI.pas';
+  WrapDelphiRTTI2 in 'WrapDelphiRTTI2.pas',
+  DelphiComponentDetection in 'DelphiComponentDetection.pas',
+  PythonObjectPrinter in 'PythonObjectPrinter.pas',
+//  WrapDelphiVCL,
+//  WrapDelphiFMX;
+  System.Rtti;
 
-{$I ..\..\Source\Definition.Inc}
+{$STRONGLINKTYPES ON}
+
+//{$I ..\..\Source\Definition.Inc}
 
 exports
   // This must match the pattern "PyInit_[ProjectName]"

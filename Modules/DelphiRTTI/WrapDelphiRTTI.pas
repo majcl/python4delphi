@@ -26,6 +26,15 @@ var
   GWrapper: TPyDelphiWrapper;
 
 type
+  // Record to access FRttiObj field without class casts
+  TRttiBaseAccess = record
+    // Match TPyObject layout (VMT pointer + instance data)
+    VMT: Pointer;
+    // Match TPyRttiBase layout - FRttiObj is first field after TPyObject
+    FRttiObj: TObject;
+  end;
+  PRttiBaseAccess = ^TRttiBaseAccess;
+
   // Base for all RTTI python objects
   TPyRttiBase = class(TPyObject)
   private
@@ -397,19 +406,117 @@ end;
 
 { -------------------- TRttiType getters - standalone wrappers -------------------- }
 
+// Generic helper to safely get TPyRttiBase without using 'is' (which accesses VMT and can crash)
+// Uses Pointer casts to avoid VMT access, then accesses field directly
+function SafeGetRttiBase(obj: PPyObject; out SelfObj: TPyRttiBase; out RttiObj: TObject): Boolean;
+var
+  PyDelphiObj: TPyObject;
+begin
+  Result := False;
+  SelfObj := nil;
+  RttiObj := nil;
+  
+  if not Assigned(obj) then
+    Exit;
+  
+  // Try PythonToDelphi first (works for same-module objects)
+  try
+    PyDelphiObj := PythonToDelphi(obj);
+    if Assigned(PyDelphiObj) then
+    begin
+      try
+        // Use Pointer cast to avoid VMT access during class cast
+        SelfObj := TPyRttiBase(Pointer(PyDelphiObj));
+        // Access field directly (property accessor is safe - it's a direct field read)
+        RttiObj := SelfObj.FRttiObj;
+        if Assigned(RttiObj) then
+          Exit(True);
+      except
+        // Cast or access failed - object might not be TPyRttiBase
+      end;
+    end;
+  except
+    // PythonToDelphi failed, try direct memory access
+  end;
+  
+  // Fallback: direct memory access for cross-module objects
+  try
+    PyDelphiObj := TPyObject(PAnsiChar(obj) + SizeOf(PyObject));
+    if Assigned(PyDelphiObj) then
+    begin
+      try
+        // Use Pointer cast to avoid VMT access
+        SelfObj := TPyRttiBase(Pointer(PyDelphiObj));
+        RttiObj := SelfObj.FRttiObj;
+        if Assigned(RttiObj) then
+          Exit(True);
+      except
+        // Access failed - object might not be TPyRttiBase
+      end;
+    end;
+  except
+    // Direct access failed
+  end;
+end;
+
+// Helper to safely get TPyRttiType without using 'is' (which accesses VMT and can crash)
+function SafeGetRttiType(obj: PPyObject; out SelfObj: TPyRttiType): Boolean;
+var
+  Base: TPyRttiBase;
+  RttiObj: TObject;
+begin
+  Result := False;
+  SelfObj := nil;
+  if SafeGetRttiBase(obj, Base, RttiObj) and Assigned(Base) and Assigned(RttiObj) then
+  begin
+    try
+      // Verify it's actually a TRttiType by checking the type (safe - TRttiType is Delphi type)
+      if RttiObj is TRttiType then
+      begin
+        // Use pointer arithmetic to avoid VMT access during cast
+        SelfObj := TPyRttiType(Pointer(Base));
+        Exit(True);
+      end;
+    except
+      // Type check or cast failed
+    end;
+  end;
+end;
+
+// Helper to safely get TPyRttiProperty without using 'is'
+function SafeGetRttiProperty(obj: PPyObject; out SelfObj: TPyRttiProperty): Boolean;
+var
+  Base: TPyRttiBase;
+  RttiObj: TObject;
+begin
+  Result := False;
+  SelfObj := nil;
+  if SafeGetRttiBase(obj, Base, RttiObj) and Assigned(Base) and Assigned(RttiObj) then
+  begin
+    try
+      if RttiObj is TRttiProperty then
+      begin
+        // Use pointer arithmetic to avoid VMT access during cast
+        SelfObj := TPyRttiProperty(Pointer(Base));
+        Exit(True);
+      end;
+    except
+    end;
+  end;
+end;
+
 function GetRttiType_Name(obj: PPyObject; context: Pointer): PPyObject; cdecl;
 var
   SelfObj: TPyRttiType;
-  PyDelphiObj: TPyObject;
 begin
+  Result := nil;
   try
-    PyDelphiObj := PythonToDelphi(obj);
-    if not Assigned(PyDelphiObj) or not (PyDelphiObj is TPyRttiType) then
-      Exit(GetPythonEngine.ReturnNone);
-    SelfObj := TPyRttiType(PyDelphiObj);
-    if not Assigned(SelfObj) or not Assigned(SelfObj.RttiObj) then
-      Exit(GetPythonEngine.ReturnNone);
-    Result := GetPythonEngine.PyUnicodeFromString(TRttiType(SelfObj.RttiObj).Name);
+    if SafeGetRttiType(obj, SelfObj) and Assigned(SelfObj.RttiObj) then
+    begin
+      Result := GetPythonEngine.PyUnicodeFromString(TRttiType(SelfObj.RttiObj).Name);
+      Exit;
+    end;
+    Result := GetPythonEngine.ReturnNone;
   except
     Result := GetPythonEngine.ReturnNone;
   end;
@@ -418,16 +525,15 @@ end;
 function GetRttiType_QualifiedName(obj: PPyObject; context: Pointer): PPyObject; cdecl;
 var
   SelfObj: TPyRttiType;
-  PyDelphiObj: TPyObject;
 begin
+  Result := nil;
   try
-    PyDelphiObj := PythonToDelphi(obj);
-    if not Assigned(PyDelphiObj) or not (PyDelphiObj is TPyRttiType) then
-      Exit(GetPythonEngine.ReturnNone);
-    SelfObj := TPyRttiType(PyDelphiObj);
-    if not Assigned(SelfObj) or not Assigned(SelfObj.RttiObj) then
-      Exit(GetPythonEngine.ReturnNone);
-    Result := GetPythonEngine.PyUnicodeFromString(TRttiType(SelfObj.RttiObj).QualifiedName);
+    if SafeGetRttiType(obj, SelfObj) and Assigned(SelfObj.RttiObj) then
+    begin
+      Result := GetPythonEngine.PyUnicodeFromString(TRttiType(SelfObj.RttiObj).QualifiedName);
+      Exit;
+    end;
+    Result := GetPythonEngine.ReturnNone;
   except
     Result := GetPythonEngine.ReturnNone;
   end;
@@ -436,16 +542,15 @@ end;
 function GetRttiType_UnitName(obj: PPyObject; context: Pointer): PPyObject; cdecl;
 var
   SelfObj: TPyRttiType;
-  PyDelphiObj: TPyObject;
 begin
+  Result := nil;
   try
-    PyDelphiObj := PythonToDelphi(obj);
-    if not Assigned(PyDelphiObj) or not (PyDelphiObj is TPyRttiType) then
-      Exit(GetPythonEngine.ReturnNone);
-    SelfObj := TPyRttiType(PyDelphiObj);
-    if not Assigned(SelfObj) or not Assigned(SelfObj.RttiObj) then
-      Exit(GetPythonEngine.ReturnNone);
-    Result := GetPythonEngine.PyUnicodeFromString(TRttiType(SelfObj.RttiObj).UnitName);
+    if SafeGetRttiType(obj, SelfObj) and Assigned(SelfObj.RttiObj) then
+    begin
+      Result := GetPythonEngine.PyUnicodeFromString(TRttiType(SelfObj.RttiObj).UnitName);
+      Exit;
+    end;
+    Result := GetPythonEngine.ReturnNone;
   except
     Result := GetPythonEngine.ReturnNone;
   end;
@@ -454,16 +559,15 @@ end;
 function GetRttiType_Kind(obj: PPyObject; context: Pointer): PPyObject; cdecl;
 var
   SelfObj: TPyRttiType;
-  PyDelphiObj: TPyObject;
 begin
+  Result := nil;
   try
-    PyDelphiObj := PythonToDelphi(obj);
-    if not Assigned(PyDelphiObj) or not (PyDelphiObj is TPyRttiType) then
-      Exit(GetPythonEngine.ReturnNone);
-    SelfObj := TPyRttiType(PyDelphiObj);
-    if not Assigned(SelfObj) or not Assigned(SelfObj.RttiObj) then
-      Exit(GetPythonEngine.ReturnNone);
-    Result := GetPythonEngine.PyLong_FromLong(Ord(TRttiType(SelfObj.RttiObj).TypeKind));
+    if SafeGetRttiType(obj, SelfObj) and Assigned(SelfObj.RttiObj) then
+    begin
+      Result := GetPythonEngine.PyLong_FromLong(Ord(TRttiType(SelfObj.RttiObj).TypeKind));
+      Exit;
+    end;
+    Result := GetPythonEngine.ReturnNone;
   except
     Result := GetPythonEngine.ReturnNone;
   end;
@@ -472,16 +576,15 @@ end;
 function GetRttiType_BaseType(obj: PPyObject; context: Pointer): PPyObject; cdecl;
 var
   SelfObj: TPyRttiType;
-  PyDelphiObj: TPyObject;
 begin
+  Result := nil;
   try
-    PyDelphiObj := PythonToDelphi(obj);
-    if not Assigned(PyDelphiObj) or not (PyDelphiObj is TPyRttiType) then
-      Exit(GetPythonEngine.ReturnNone);
-    SelfObj := TPyRttiType(PyDelphiObj);
-    if not Assigned(SelfObj) or not Assigned(SelfObj.RttiObj) then
-      Exit(GetPythonEngine.ReturnNone);
-    Result := WrapRttiObj(TRttiType(SelfObj.RttiObj).BaseType);
+    if SafeGetRttiType(obj, SelfObj) and Assigned(SelfObj.RttiObj) then
+    begin
+      Result := WrapRttiObj(TRttiType(SelfObj.RttiObj).BaseType);
+      Exit;
+    end;
+    Result := GetPythonEngine.ReturnNone;
   except
     Result := GetPythonEngine.ReturnNone;
   end;
@@ -490,21 +593,20 @@ end;
 function GetRttiType_Properties(obj: PPyObject; context: Pointer): PPyObject; cdecl;
 var
   SelfObj: TPyRttiType;
-  PyDelphiObj: TPyObject;
   P: TArray<TRttiProperty>;
   I: Integer;
 begin
+  Result := nil;
   try
-    PyDelphiObj := PythonToDelphi(obj);
-    if not Assigned(PyDelphiObj) or not (PyDelphiObj is TPyRttiType) then
-      Exit(GetPythonEngine.PyList_New(0));
-    SelfObj := TPyRttiType(PyDelphiObj);
-    if not Assigned(SelfObj) or not Assigned(SelfObj.RttiObj) then
-      Exit(GetPythonEngine.PyList_New(0));
-    P := TRttiType(SelfObj.RttiObj).GetProperties;
-    Result := GetPythonEngine.PyList_New(Length(P));
-    for I := 0 to High(P) do
-      GetPythonEngine.PyList_SetItem(Result, I, WrapRttiObj(P[I]));
+    if SafeGetRttiType(obj, SelfObj) and Assigned(SelfObj.RttiObj) then
+    begin
+      P := TRttiType(SelfObj.RttiObj).GetProperties;
+      Result := GetPythonEngine.PyList_New(Length(P));
+      for I := 0 to High(P) do
+        GetPythonEngine.PyList_SetItem(Result, I, WrapRttiObj(P[I]));
+      Exit;
+    end;
+    Result := GetPythonEngine.PyList_New(0);
   except
     Result := GetPythonEngine.PyList_New(0);
   end;
@@ -513,21 +615,20 @@ end;
 function GetRttiType_Methods(obj: PPyObject; context: Pointer): PPyObject; cdecl;
 var
   SelfObj: TPyRttiType;
-  PyDelphiObj: TPyObject;
   M: TArray<TRttiMethod>;
   I: Integer;
 begin
+  Result := nil;
   try
-    PyDelphiObj := PythonToDelphi(obj);
-    if not Assigned(PyDelphiObj) or not (PyDelphiObj is TPyRttiType) then
-      Exit(GetPythonEngine.PyList_New(0));
-    SelfObj := TPyRttiType(PyDelphiObj);
-    if not Assigned(SelfObj) or not Assigned(SelfObj.RttiObj) then
-      Exit(GetPythonEngine.PyList_New(0));
-    M := TRttiType(SelfObj.RttiObj).GetMethods;
-    Result := GetPythonEngine.PyList_New(Length(M));
-    for I := 0 to High(M) do
-      GetPythonEngine.PyList_SetItem(Result, I, WrapRttiObj(M[I]));
+    if SafeGetRttiType(obj, SelfObj) and Assigned(SelfObj.RttiObj) then
+    begin
+      M := TRttiType(SelfObj.RttiObj).GetMethods;
+      Result := GetPythonEngine.PyList_New(Length(M));
+      for I := 0 to High(M) do
+        GetPythonEngine.PyList_SetItem(Result, I, WrapRttiObj(M[I]));
+      Exit;
+    end;
+    Result := GetPythonEngine.PyList_New(0);
   except
     Result := GetPythonEngine.PyList_New(0);
   end;
@@ -536,21 +637,20 @@ end;
 function GetRttiType_Fields(obj: PPyObject; context: Pointer): PPyObject; cdecl;
 var
   SelfObj: TPyRttiType;
-  PyDelphiObj: TPyObject;
   F: TArray<TRttiField>;
   I: Integer;
 begin
+  Result := nil;
   try
-    PyDelphiObj := PythonToDelphi(obj);
-    if not Assigned(PyDelphiObj) or not (PyDelphiObj is TPyRttiType) then
-      Exit(GetPythonEngine.PyList_New(0));
-    SelfObj := TPyRttiType(PyDelphiObj);
-    if not Assigned(SelfObj) or not Assigned(SelfObj.RttiObj) then
-      Exit(GetPythonEngine.PyList_New(0));
-    F := TRttiType(SelfObj.RttiObj).GetFields;
-    Result := GetPythonEngine.PyList_New(Length(F));
-    for I := 0 to High(F) do
-      GetPythonEngine.PyList_SetItem(Result, I, WrapRttiObj(F[I]));
+    if SafeGetRttiType(obj, SelfObj) and Assigned(SelfObj.RttiObj) then
+    begin
+      F := TRttiType(SelfObj.RttiObj).GetFields;
+      Result := GetPythonEngine.PyList_New(Length(F));
+      for I := 0 to High(F) do
+        GetPythonEngine.PyList_SetItem(Result, I, WrapRttiObj(F[I]));
+      Exit;
+    end;
+    Result := GetPythonEngine.PyList_New(0);
   except
     Result := GetPythonEngine.PyList_New(0);
   end;
@@ -559,16 +659,15 @@ end;
 function GetRttiType_Attributes(obj: PPyObject; context: Pointer): PPyObject; cdecl;
 var
   SelfObj: TPyRttiType;
-  PyDelphiObj: TPyObject;
 begin
+  Result := nil;
   try
-    PyDelphiObj := PythonToDelphi(obj);
-    if not Assigned(PyDelphiObj) or not (PyDelphiObj is TPyRttiType) then
-      Exit(GetPythonEngine.PyList_New(0));
-    SelfObj := TPyRttiType(PyDelphiObj);
-    if not Assigned(SelfObj) or not Assigned(SelfObj.RttiObj) then
-      Exit(GetPythonEngine.PyList_New(0));
-    Result := WrapAttributes(TRttiType(SelfObj.RttiObj).GetAttributes);
+    if SafeGetRttiType(obj, SelfObj) and Assigned(SelfObj.RttiObj) then
+    begin
+      Result := WrapAttributes(TRttiType(SelfObj.RttiObj).GetAttributes);
+      Exit;
+    end;
+    Result := GetPythonEngine.PyList_New(0);
   except
     Result := GetPythonEngine.PyList_New(0);
   end;
@@ -654,16 +753,15 @@ end;
 function GetRttiProperty_Name(obj: PPyObject; context: Pointer): PPyObject; cdecl;
 var
   SelfObj: TPyRttiProperty;
-  PyDelphiObj: TPyObject;
 begin
+  Result := nil;
   try
-    PyDelphiObj := PythonToDelphi(obj);
-    if not Assigned(PyDelphiObj) or not (PyDelphiObj is TPyRttiProperty) then
-      Exit(GetPythonEngine.ReturnNone);
-    SelfObj := TPyRttiProperty(PyDelphiObj);
-    if not Assigned(SelfObj) or not Assigned(SelfObj.RttiObj) then
-      Exit(GetPythonEngine.ReturnNone);
-    Result := GetPythonEngine.PyUnicodeFromString(TRttiProperty(SelfObj.RttiObj).Name);
+    if SafeGetRttiProperty(obj, SelfObj) and Assigned(SelfObj.RttiObj) then
+    begin
+      Result := GetPythonEngine.PyUnicodeFromString(TRttiProperty(SelfObj.RttiObj).Name);
+      Exit;
+    end;
+    Result := GetPythonEngine.ReturnNone;
   except
     Result := GetPythonEngine.ReturnNone;
   end;
@@ -672,16 +770,15 @@ end;
 function GetRttiProperty_Visibility(obj: PPyObject; context: Pointer): PPyObject; cdecl;
 var
   SelfObj: TPyRttiProperty;
-  PyDelphiObj: TPyObject;
 begin
+  Result := nil;
   try
-    PyDelphiObj := PythonToDelphi(obj);
-    if not Assigned(PyDelphiObj) or not (PyDelphiObj is TPyRttiProperty) then
-      Exit(GetPythonEngine.ReturnNone);
-    SelfObj := TPyRttiProperty(PyDelphiObj);
-    if not Assigned(SelfObj) or not Assigned(SelfObj.RttiObj) then
-      Exit(GetPythonEngine.ReturnNone);
-    Result := GetPythonEngine.PyLong_FromLong(Ord(TRttiProperty(SelfObj.RttiObj).Visibility));
+    if SafeGetRttiProperty(obj, SelfObj) and Assigned(SelfObj.RttiObj) then
+    begin
+      Result := GetPythonEngine.PyLong_FromLong(Ord(TRttiProperty(SelfObj.RttiObj).Visibility));
+      Exit;
+    end;
+    Result := GetPythonEngine.ReturnNone;
   except
     Result := GetPythonEngine.ReturnNone;
   end;
@@ -690,16 +787,15 @@ end;
 function GetRttiProperty_IsReadable(obj: PPyObject; context: Pointer): PPyObject; cdecl;
 var
   SelfObj: TPyRttiProperty;
-  PyDelphiObj: TPyObject;
 begin
+  Result := nil;
   try
-    PyDelphiObj := PythonToDelphi(obj);
-    if not Assigned(PyDelphiObj) or not (PyDelphiObj is TPyRttiProperty) then
-      Exit(GetPythonEngine.ReturnNone);
-    SelfObj := TPyRttiProperty(PyDelphiObj);
-    if not Assigned(SelfObj) or not Assigned(SelfObj.RttiObj) then
-      Exit(GetPythonEngine.ReturnNone);
-    Result := GetPythonEngine.PyBool_FromLong(Ord(TRttiProperty(SelfObj.RttiObj).IsReadable));
+    if SafeGetRttiProperty(obj, SelfObj) and Assigned(SelfObj.RttiObj) then
+    begin
+      Result := GetPythonEngine.PyBool_FromLong(Ord(TRttiProperty(SelfObj.RttiObj).IsReadable));
+      Exit;
+    end;
+    Result := GetPythonEngine.ReturnNone;
   except
     Result := GetPythonEngine.ReturnNone;
   end;
@@ -708,16 +804,15 @@ end;
 function GetRttiProperty_IsWritable(obj: PPyObject; context: Pointer): PPyObject; cdecl;
 var
   SelfObj: TPyRttiProperty;
-  PyDelphiObj: TPyObject;
 begin
+  Result := nil;
   try
-    PyDelphiObj := PythonToDelphi(obj);
-    if not Assigned(PyDelphiObj) or not (PyDelphiObj is TPyRttiProperty) then
-      Exit(GetPythonEngine.ReturnNone);
-    SelfObj := TPyRttiProperty(PyDelphiObj);
-    if not Assigned(SelfObj) or not Assigned(SelfObj.RttiObj) then
-      Exit(GetPythonEngine.ReturnNone);
-    Result := GetPythonEngine.PyBool_FromLong(Ord(TRttiProperty(SelfObj.RttiObj).IsWritable));
+    if SafeGetRttiProperty(obj, SelfObj) and Assigned(SelfObj.RttiObj) then
+    begin
+      Result := GetPythonEngine.PyBool_FromLong(Ord(TRttiProperty(SelfObj.RttiObj).IsWritable));
+      Exit;
+    end;
+    Result := GetPythonEngine.ReturnNone;
   except
     Result := GetPythonEngine.ReturnNone;
   end;
@@ -726,16 +821,15 @@ end;
 function GetRttiProperty_IsIndexed(obj: PPyObject; context: Pointer): PPyObject; cdecl;
 var
   SelfObj: TPyRttiProperty;
-  PyDelphiObj: TPyObject;
 begin
+  Result := nil;
   try
-    PyDelphiObj := PythonToDelphi(obj);
-    if not Assigned(PyDelphiObj) or not (PyDelphiObj is TPyRttiProperty) then
-      Exit(GetPythonEngine.ReturnNone);
-    SelfObj := TPyRttiProperty(PyDelphiObj);
-    if not Assigned(SelfObj) or not Assigned(SelfObj.RttiObj) then
-      Exit(GetPythonEngine.ReturnNone);
-    Result := GetPythonEngine.PyBool_FromLong(Ord(SelfObj.RttiObj is TRttiIndexedProperty));
+    if SafeGetRttiProperty(obj, SelfObj) and Assigned(SelfObj.RttiObj) then
+    begin
+      Result := GetPythonEngine.PyBool_FromLong(Ord(SelfObj.RttiObj is TRttiIndexedProperty));
+      Exit;
+    end;
+    Result := GetPythonEngine.ReturnNone;
   except
     Result := GetPythonEngine.ReturnNone;
   end;
@@ -744,16 +838,15 @@ end;
 function GetRttiProperty_PropertyType(obj: PPyObject; context: Pointer): PPyObject; cdecl;
 var
   SelfObj: TPyRttiProperty;
-  PyDelphiObj: TPyObject;
 begin
+  Result := nil;
   try
-    PyDelphiObj := PythonToDelphi(obj);
-    if not Assigned(PyDelphiObj) or not (PyDelphiObj is TPyRttiProperty) then
-      Exit(GetPythonEngine.ReturnNone);
-    SelfObj := TPyRttiProperty(PyDelphiObj);
-    if not Assigned(SelfObj) or not Assigned(SelfObj.RttiObj) then
-      Exit(GetPythonEngine.ReturnNone);
-    Result := WrapRttiObj(TRttiProperty(SelfObj.RttiObj).PropertyType);
+    if SafeGetRttiProperty(obj, SelfObj) and Assigned(SelfObj.RttiObj) then
+    begin
+      Result := WrapRttiObj(TRttiProperty(SelfObj.RttiObj).PropertyType);
+      Exit;
+    end;
+    Result := GetPythonEngine.ReturnNone;
   except
     Result := GetPythonEngine.ReturnNone;
   end;
@@ -762,27 +855,26 @@ end;
 function GetRttiProperty_IndexParameters(obj: PPyObject; context: Pointer): PPyObject; cdecl;
 var
   SelfObj: TPyRttiProperty;
-  PyDelphiObj: TPyObject;
   IP: TRttiIndexedProperty;
   M: TRttiMethod;
   Params: TArray<TRttiParameter>;
   I: Integer;
 begin
+  Result := nil;
   try
-    PyDelphiObj := PythonToDelphi(obj);
-    if not Assigned(PyDelphiObj) or not (PyDelphiObj is TPyRttiProperty) then
-      Exit(GetPythonEngine.PyList_New(0));
-    SelfObj := TPyRttiProperty(PyDelphiObj);
-    if not Assigned(SelfObj) or not Assigned(SelfObj.RttiObj) or not (SelfObj.RttiObj is TRttiIndexedProperty) then
-      Exit(GetPythonEngine.PyList_New(0));
-    IP := TRttiIndexedProperty(SelfObj.RttiObj);
-    M := IP.ReadMethod;
-    if M = nil then
-      Exit(GetPythonEngine.PyList_New(0));
-    Params := M.GetParameters;
-    Result := GetPythonEngine.PyList_New(Length(Params));
-    for I := 0 to High(Params) do
-      GetPythonEngine.PyList_SetItem(Result, I, WrapRttiObj(Params[I]));
+    if SafeGetRttiProperty(obj, SelfObj) and Assigned(SelfObj.RttiObj) and (SelfObj.RttiObj is TRttiIndexedProperty) then
+    begin
+      IP := TRttiIndexedProperty(SelfObj.RttiObj);
+      M := IP.ReadMethod;
+      if M = nil then
+        Exit(GetPythonEngine.PyList_New(0));
+      Params := M.GetParameters;
+      Result := GetPythonEngine.PyList_New(Length(Params));
+      for I := 0 to High(Params) do
+        GetPythonEngine.PyList_SetItem(Result, I, WrapRttiObj(Params[I]));
+      Exit;
+    end;
+    Result := GetPythonEngine.PyList_New(0);
   except
     Result := GetPythonEngine.PyList_New(0);
   end;
@@ -791,23 +883,20 @@ end;
 function GetRttiProperty_Default(obj: PPyObject; context: Pointer): PPyObject; cdecl;
 var
   SelfObj: TPyRttiProperty;
-  PyDelphiObj: TPyObject;
   IP: TRttiInstanceProperty;
 begin
+  Result := nil;
   try
-    PyDelphiObj := PythonToDelphi(obj);
-    if not Assigned(PyDelphiObj) or not (PyDelphiObj is TPyRttiProperty) then
-      Exit(GetPythonEngine.ReturnNone);
-    SelfObj := TPyRttiProperty(PyDelphiObj);
-    if not Assigned(SelfObj) or not Assigned(SelfObj.RttiObj) then
-      Exit(GetPythonEngine.ReturnNone);
-    if SelfObj.RttiObj is TRttiInstanceProperty then
+    if SafeGetRttiProperty(obj, SelfObj) and Assigned(SelfObj.RttiObj) then
     begin
-      IP := TRttiInstanceProperty(SelfObj.RttiObj);
-      Result := GetPythonEngine.PyLong_FromLong(IP.Default);
-    end
-    else
-      Result := GetPythonEngine.ReturnNone;
+      if SelfObj.RttiObj is TRttiInstanceProperty then
+      begin
+        IP := TRttiInstanceProperty(SelfObj.RttiObj);
+        Result := GetPythonEngine.PyLong_FromLong(IP.Default);
+        Exit;
+      end;
+    end;
+    Result := GetPythonEngine.ReturnNone;
   except
     Result := GetPythonEngine.ReturnNone;
   end;
@@ -816,16 +905,15 @@ end;
 function GetRttiProperty_Attributes(obj: PPyObject; context: Pointer): PPyObject; cdecl;
 var
   SelfObj: TPyRttiProperty;
-  PyDelphiObj: TPyObject;
 begin
+  Result := nil;
   try
-    PyDelphiObj := PythonToDelphi(obj);
-    if not Assigned(PyDelphiObj) or not (PyDelphiObj is TPyRttiProperty) then
-      Exit(GetPythonEngine.PyList_New(0));
-    SelfObj := TPyRttiProperty(PyDelphiObj);
-    if not Assigned(SelfObj) or not Assigned(SelfObj.RttiObj) then
-      Exit(GetPythonEngine.PyList_New(0));
-    Result := WrapAttributes(TRttiProperty(SelfObj.RttiObj).GetAttributes);
+    if SafeGetRttiProperty(obj, SelfObj) and Assigned(SelfObj.RttiObj) then
+    begin
+      Result := WrapAttributes(TRttiProperty(SelfObj.RttiObj).GetAttributes);
+      Exit;
+    end;
+    Result := GetPythonEngine.PyList_New(0);
   except
     Result := GetPythonEngine.PyList_New(0);
   end;
