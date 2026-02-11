@@ -1,4 +1,4 @@
-unit WrapDelphiRTTI;
+﻿unit WrapDelphiRTTI;
 
 interface
 
@@ -15,11 +15,7 @@ uses
   System.Rtti,
   System.TypInfo,
   System.Generics.Collections,
-  WrapDelphiClasses,      // for TPyDelphiObject
-  {$IFDEF MSWINDOWS}
-  Vcl.Forms,              // Force VCL types into RTTI context
-  Fmx.Forms;              // Force FMX types into RTTI context
-  {$ENDIF}
+  WrapDelphiClasses;
 
 var
   GRttiContext: TRttiContext;

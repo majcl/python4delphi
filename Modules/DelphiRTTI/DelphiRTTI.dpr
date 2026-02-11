@@ -25,13 +25,16 @@ library DelphiRTTI;
 
 uses
   System.SysUtils,
-  uMain in 'uMain.pas',
-  WrapDelphiRTTI2 in 'WrapDelphiRTTI2.pas',
-  DelphiComponentDetection in 'DelphiComponentDetection.pas',
-  PythonObjectPrinter in 'PythonObjectPrinter.pas',
-//  WrapDelphiVCL,
-//  WrapDelphiFMX;
+  uMain in 'sources\uMain.pas',
+  WrapDelphiRTTI2 in 'sources\WrapDelphiRTTI2.pas',
+  DelphiComponentDetection in 'sources\DelphiComponentDetection.pas',
+  PythonObjectPrinter in 'sources\PythonObjectPrinter.pas' {,
   System.Rtti;
+
+{$STRONGLINKTYPES ON},
+  System.Rtti,
+  DelphiRTTIExceptions in 'sources\DelphiRTTIExceptions.pas',
+  WrapDelphiRTTI in 'sources\WrapDelphiRTTI.pas';
 
 {$STRONGLINKTYPES ON}
 
@@ -52,6 +55,7 @@ exports
 {$ENDIF}
 {$WARN SYMBOL_PLATFORM ON}
 begin
+  ReportMemoryLeaksOnShutdown := True;
 end.
 
 
