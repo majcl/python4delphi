@@ -25,16 +25,15 @@ library DelphiRTTI;
 
 uses
   System.SysUtils,
+  System.Rtti,
   uMain in 'sources\uMain.pas',
-  WrapDelphiRTTI2 in 'sources\WrapDelphiRTTI2.pas',
+  WrapDelphiRTTI in 'sources\WrapDelphiRTTI.pas',
   DelphiComponentDetection in 'sources\DelphiComponentDetection.pas',
+  DelphiRTTIExceptions in 'sources\DelphiRTTIExceptions.pas',
   PythonObjectPrinter in 'sources\PythonObjectPrinter.pas' {,
   System.Rtti;
 
-{$STRONGLINKTYPES ON},
-  System.Rtti,
-  DelphiRTTIExceptions in 'sources\DelphiRTTIExceptions.pas',
-  WrapDelphiRTTI in 'sources\WrapDelphiRTTI.pas';
+{$STRONGLINKTYPES ON};
 
 {$STRONGLINKTYPES ON}
 

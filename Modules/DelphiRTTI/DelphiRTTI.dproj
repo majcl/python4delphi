@@ -4,9 +4,9 @@
         <ProjectVersion>20.3</ProjectVersion>
         <FrameworkType>None</FrameworkType>
         <Base>True</Base>
-        <Config Condition="'$(Config)'==''">Debug</Config>
+        <Config Condition="'$(Config)'==''">Release</Config>
         <Platform Condition="'$(Platform)'==''">Win64</Platform>
-        <TargetedPlatforms>168963</TargetedPlatforms>
+        <TargetedPlatforms>693379</TargetedPlatforms>
         <AppType>Library</AppType>
         <MainSource>DelphiRTTI.dpr</MainSource>
         <ProjectName Condition="'$(ProjectName)'==''">DelphiRTTI</ProjectName>
@@ -167,16 +167,15 @@
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
         <DCCReference Include="sources\uMain.pas"/>
-        <DCCReference Include="sources\WrapDelphiRTTI2.pas"/>
+        <DCCReference Include="sources\WrapDelphiRTTI.pas"/>
         <DCCReference Include="sources\DelphiComponentDetection.pas"/>
+        <DCCReference Include="sources\DelphiRTTIExceptions.pas"/>
         <DCCReference Include="sources\PythonObjectPrinter.pas">
             <Form>,
   System.Rtti;
 
 {$STRONGLINKTYPES ON</Form>
         </DCCReference>
-        <DCCReference Include="sources\DelphiRTTIExceptions.pas"/>
-        <DCCReference Include="sources\WrapDelphiRTTI.pas"/>
         <None Include="DelphiRTTI.dpr"/>
         <None Include="ModelSupport_DelphiRTTI\default.txaPackage"/>
         <None Include="ModelSupport_DelphiRTTI\default.txvpck"/>
@@ -1185,8 +1184,8 @@
                 <Platform value="Android">False</Platform>
                 <Platform value="Android64">True</Platform>
                 <Platform value="iOSDevice64">True</Platform>
-                <Platform value="iOSSimARM64">False</Platform>
-                <Platform value="Linux64">False</Platform>
+                <Platform value="iOSSimARM64">True</Platform>
+                <Platform value="Linux64">True</Platform>
                 <Platform value="OSX64">True</Platform>
                 <Platform value="OSXARM64">True</Platform>
                 <Platform value="Win32">True</Platform>

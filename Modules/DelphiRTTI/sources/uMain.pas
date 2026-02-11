@@ -12,9 +12,8 @@ implementation
 uses
   System.SysUtils,
   WrapDelphi,
-  WrapDelphiRTTI3,
-  WrapDelphiRTTI2;
-  // WrapDelphiRTTI;  // Temporarily excluded
+  WrapDelphiRTTI,
+  DelphiRTTIExceptions;
 
 var
   gEngine: TPythonEngine = nil;
@@ -49,7 +48,7 @@ begin
       // because Module is not yet initialized. Later, when Python runs
       // Exec_Module, it sets Module.Module and calls ModuleReady on each
       // client type, which runs AddTypeVar and adds them to the module dict.
-      RegisterDelphiRTTI3(gModule, gDelphiWrapper);
+      RegisterDelphiRTTI(gModule, gDelphiWrapper);
 
       // IMPORTANT: bind to the already-running interpreter
       gEngine.LoadDllInExtensionModule;
@@ -57,11 +56,10 @@ begin
     except
       on E: Exception do
       begin
-        var ErrMsg := AnsiString('DelphiRTTI init failed: ' + E.ClassName + ': ' + E.Message);
-         if Assigned(gEngine) and gEngine.IsHandleValid then
-          gEngine.PyErr_SetString(gEngine.PyExc_RuntimeError^, PAnsiChar(ErrMsg))
-         else
-          WriteLn(ErrOutput, ErrMsg);
+        if Assigned(gEngine) and gEngine.IsHandleValid then
+          SetPythonError(gEngine.PyExc_RuntimeError^, 'DelphiRTTI init failed: %s: %s', [E.ClassName, E.Message])
+        else
+          WriteLn(ErrOutput, 'DelphiRTTI init failed: ', E.ClassName, ': ', E.Message);
         Exit(nil);
       end;
     end;
