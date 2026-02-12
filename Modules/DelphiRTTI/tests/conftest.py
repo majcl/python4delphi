@@ -1,81 +1,98 @@
-"""
-Pytest configuration for DelphiRTTI tests.
-"""
-import sys
-import os
-import pytest
+"""Pytest configuration for DelphiRTTI tests."""
+import gc
+import importlib
 import platform
+import sys
+from pathlib import Path
 
-# Setup path before any imports
-script_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-for config in ['Debug', 'Release']:
-    lib_path = os.path.join(script_dir, 'Win64', config)
-    if os.path.exists(lib_path) and lib_path not in sys.path:
-        sys.path.insert(0, lib_path)
-        break
+import pytest
 
-# Import modules
-import DelphiRTTI
+SCRIPT_DIR = Path(__file__).resolve().parent.parent
+IS_WINDOWS = platform.system() == "Windows"
 
-try:
-    import delphivcl as vcl
-except ImportError:
-    try:
-        import DelphiVCL as vcl
-    except ImportError:
-        vcl = None
 
-try:
-    import delphifmx as fmx
-except ImportError:
-    try:
-        import DelphiFMX as fmx
-    except ImportError:
-        fmx = None
+def _platform_dir():
+    is_64_bit = sys.maxsize > 2**32
+    system_name = platform.system().lower()
+    if system_name == "windows":
+        return "Win64" if is_64_bit else "Win32"
+    if system_name == "linux":
+        return "Linux64" if is_64_bit else "Linux32"
+    if system_name == "darwin":
+        return "OSXARM64" if is_64_bit else "Darwin32"
+    return "64" if is_64_bit else "32"
 
-IS_WINDOWS = platform.system() == 'Windows'
+
+def _add_library_paths():
+    platform_dir = _platform_dir()
+    discovered = []
+    for root in (SCRIPT_DIR / "pyd", SCRIPT_DIR):
+        for config in ("Debug", "Release"):
+            candidate = root / platform_dir / config
+            if candidate.exists():
+                candidate_str = str(candidate)
+                if candidate_str not in sys.path:
+                    sys.path.insert(0, candidate_str)
+                discovered.append(candidate_str)
+    return discovered
+
+
+def _import_first_available(names):
+    for name in names:
+        try:
+            return importlib.import_module(name)
+        except ImportError:
+            continue
+    return None
+
+
+DISCOVERED_LIBRARY_PATHS = _add_library_paths()
+rtti = _import_first_available(("DelphiRTTI",))
+vcl = _import_first_available(("delphivcl", "DelphiVCL"))
+fmx = _import_first_available(("delphifmx", "DelphiFMX"))
+
+
+def _paths_text():
+    return ", ".join(DISCOVERED_LIBRARY_PATHS) if DISCOVERED_LIBRARY_PATHS else "none"
+
+
+def pytest_configure(config):
+    if rtti is None:
+        raise pytest.UsageError(
+            "FATAL: DelphiRTTI module not found. "
+            f"Detected library paths: {_paths_text()}"
+        )
+    if not hasattr(rtti, "get_type_rtti"):
+        raise pytest.UsageError(
+            "FATAL: DelphiRTTI.get_type_rtti is missing. "
+            f"Detected library paths: {_paths_text()}"
+        )
+    if IS_WINDOWS:
+        if vcl is None:
+            raise pytest.UsageError("FATAL: On Windows, delphivcl is required.")
+        if fmx is None:
+            raise pytest.UsageError("FATAL: On Windows, delphifmx is required.")
+    elif fmx is None:
+        raise pytest.UsageError("FATAL: On non-Windows platforms, delphifmx is required.")
+
+    config.option.assertmode = "plain"
 
 
 @pytest.fixture
-def rtti():
-    """DelphiRTTI module fixture."""
-    yield DelphiRTTI
-    # Explicit cleanup to avoid crashes during pytest teardown
-    import gc
+def rtti_module():
+    yield rtti
     gc.collect()
 
 
 @pytest.fixture
 def vcl_module():
-    """VCL module fixture."""
-    if vcl is None:
-        pytest.skip("delphivcl module not available")
     yield vcl
-    # Explicit cleanup
-    import gc
     gc.collect()
 
 
 @pytest.fixture
 def fmx_module():
-    """FMX module fixture."""
-    if fmx is None:
-        pytest.skip("delphifmx module not available")
     yield fmx
-    # Explicit cleanup
-    import gc
     gc.collect()
-
-
-def pytest_configure(config):
-    """Configure pytest to avoid crashes with native extension modules."""
-    # Disable assertion rewriting
-    config.option.assertmode = "plain"
-    # Enable faulthandler to identify crashes
-    try:
-        import faulthandler
-        faulthandler.enable()
-    except ImportError:
-        pass
 
 
