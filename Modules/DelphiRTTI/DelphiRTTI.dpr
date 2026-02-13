@@ -33,7 +33,8 @@ uses
   PythonObjectPrinter in 'sources\PythonObjectPrinter.pas' {,
   System.Rtti;
 
-{$STRONGLINKTYPES ON};
+{$STRONGLINKTYPES ON},
+  SimpleLogging in 'sources\SimpleLogging.pas';
 
 {$STRONGLINKTYPES ON}
 

@@ -1,4 +1,4 @@
-﻿unit DelphiComponentDetection;
+unit DelphiComponentDetection;
 
 interface
 
@@ -284,13 +284,13 @@ begin
       // further downhill of descendants tree, than tp_dealloc, which should
       // never happen.
       if not CacheDeallocPointer.contains(@obj_type^.tp_dealloc) then
-        raise Exception.Create('Not a delphi descendand type: dealloc missing!');
+        raise EDelphiRTTIInternal.Create('Not a delphi descendand type: dealloc missing!');
       Exit(obj_type^.tp_pythontype);
     end;
     obj_type := obj_type^.tp_base;
   end;
 
-  raise Exception.Create('Not a delphi descendand type: pythontype not found!');
+  raise EDelphiRTTIInternal.Create('Not a delphi descendand type: pythontype not found!');
 end;
 
 function _get_field_ptr(obj_ptr: Pointer; field_name: AnsiString): Pointer;
@@ -340,7 +340,7 @@ begin
 
   var value := method.Invoke(cls, []);
   if value.IsEmpty then
-    raise EDelphiRTTI.Create('Result of invoked method %s is empty!');
+    raise EDelphiRTTIInternal.CreateFmt('Result of invoked method %s is empty!', [method_name]);
 
   Result := value;
 
@@ -392,14 +392,14 @@ begin
   var py_object_class_ptr := _get_field_ptr(python_type_ptr, 'FPyObjectClass');
 
   var py_object_class := TClass(py_object_class_ptr);
-  TLogger.DEBUG('TPyDelphiObject[%s] ...', [py_object_class.ClassName]);
+  TLogger.DEBUG('    TPyDelphiObject[%s] ...', [py_object_class.ClassName]);
 
   var value := _invoke_class_method(py_object_class, 'DelphiObjectClass');
   if not (value.Kind in [tkClass, tkClassRef]) then begin
-    raise EDelphiRTTI.Create(Format('Result of DelphiObjectClass is Wrong! kind=%d type=%s ...', [
+    raise EDelphiRTTIInternal.CreateFmt('Result of DelphiObjectClass is wrong! kind=%s type=%s', [
       GetEnumName(TypeInfo(TTypeKind), Ord(value.Kind)),
       string(value.TypeInfo.Name)
-    ]));
+    ]);
   end;
 
   // safest: treat it as raw pointer-sized value
@@ -439,9 +439,9 @@ begin
   var python_type_ptr := find_delphi_base_python_type(type_object);
   TLogger.DEBUG('    %p', [python_type_ptr]);
 
-  TLogger.DEBUG('Converting...');
+  TLogger.DEBUG('    Converting...');
   var delphi_type := convert_PythonTypePtr_to_TClass(python_type_ptr);
-  TLogger.DEBUG(Format('Result type: %s', [delphi_type.ClassName]));
+  TLogger.DEBUG('    Result type: %s', [delphi_type.ClassName]);
 
   Result := delphi_type;
 end;

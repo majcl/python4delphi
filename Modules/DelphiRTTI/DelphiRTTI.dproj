@@ -4,7 +4,7 @@
         <ProjectVersion>20.3</ProjectVersion>
         <FrameworkType>None</FrameworkType>
         <Base>True</Base>
-        <Config Condition="'$(Config)'==''">Release</Config>
+        <Config Condition="'$(Config)'==''">Debug</Config>
         <Platform Condition="'$(Platform)'==''">Win64</Platform>
         <TargetedPlatforms>693379</TargetedPlatforms>
         <AppType>Library</AppType>
@@ -176,6 +176,7 @@
 
 {$STRONGLINKTYPES ON</Form>
         </DCCReference>
+        <DCCReference Include="sources\SimpleLogging.pas"/>
         <None Include="DelphiRTTI.dpr"/>
         <None Include="ModelSupport_DelphiRTTI\default.txaPackage"/>
         <None Include="ModelSupport_DelphiRTTI\default.txvpck"/>
@@ -224,6 +225,12 @@
                 <DeployFile LocalName="Win64\Debug\DelphiRTTI.dll" Configuration="Debug" Class="ProjectOutput"/>
                 <DeployFile LocalName="pyd\Win64\Debug\DelphiRTTI.dll" Configuration="Debug" Class="ProjectOutput"/>
                 <DeployFile LocalName="pyd\Win64\Debug\DelphiRTTI.dll" Configuration="Debug" Class="ProjectOutput">
+                    <Platform Name="Win64">
+                        <RemoteName>DelphiRTTI.dll</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="pyd\Win64\Release\DelphiRTTI.dll" Configuration="Release" Class="ProjectOutput">
                     <Platform Name="Win64">
                         <RemoteName>DelphiRTTI.dll</RemoteName>
                         <Overwrite>true</Overwrite>
