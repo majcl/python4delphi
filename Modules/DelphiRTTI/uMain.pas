@@ -12,8 +12,7 @@ implementation
 uses
   System.SysUtils,
   WrapDelphi,
-  WrapDelphiRTTI2;
-  // WrapDelphiRTTI;  // Temporarily excluded
+  WrapDelphiRTTI;
 
 var
   gEngine: TPythonEngine = nil;
@@ -46,7 +45,7 @@ begin
       gEngine.LoadDllInExtensionModule;
 
       // Now it's safe to create TPythonType, call Py* APIs, etc.
-      RegisterDelphiRTTI2(gModule);
+      RegisterDelphiRTTI(gModule, gDelphiWrapper);
 
     except
       on E: Exception do
@@ -62,9 +61,6 @@ begin
   end;
 
   Result := gEngine.PyModuleDef_Init(@gModule.ModuleDef);
-  
-  // Types will be initialized lazily when first used (in NewWrappedRtti)
-  // This avoids assertion failures during module registration
 end;
 
 initialization

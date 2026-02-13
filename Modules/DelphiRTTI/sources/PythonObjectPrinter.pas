@@ -10,73 +10,73 @@ uses
 implementation
 
 uses
-  System.SysUtils;
+  System.SysUtils,
+  SimpleLogging;
 
 procedure print_metadata(const obj: PPyObject);
 begin
   with obj.ob_type^ do begin
-    Writeln(Format('Generic: Type: %s ; PythonType: %s ', [
+    TLogger.DEBUG('Generic: Type: %s ; PythonType: %s ', [
       tp_name,
       tp_base^.tp_name
-    ]));
+    ]);
   end;
 
 
-  Writeln(Format('IsDelphiObject: %s ; Assigned: %s ; FindPythonType: %s; obj->tpname: %s; tpdealloc: %s', [
+  TLogger.DEBUG('IsDelphiObject: %s ; Assigned: %s ; FindPythonType: %s; obj->tpname: %s; tpdealloc: %s', [
     BoolToStr(IsDelphiObject(obj), True),
     BoolToStr(Assigned(obj), True),
     BoolToStr((PythonEngine.FindPythonType(obj.ob_type) <> nil), True),
     obj.ob_type^.tp_name,
     BoolToStr(@obj.ob_type^.tp_dealloc = @PyObjectDestructor, True)
-  ]));
+  ]);
 
-  Writeln(Format('tpdealloc: %p ; tpfree: %p ; tpdel: %p ; tpfinalize: %p ; tpnew: %p ; PyObjectDestructor: %p', [
+  TLogger.DEBUG('tpdealloc: %p ; tpfree: %p ; tpdel: %p ; tpfinalize: %p ; tpnew: %p ; PyObjectDestructor: %p', [
     @obj.ob_type^.tp_dealloc,
     @obj.ob_type^.tp_free,
     @obj.ob_type^.tp_del,
     @obj.ob_type^.tp_finalize,
     @obj.ob_type^.tp_new,
     @PyObjectDestructor
-  ]));
-  Flush(Output);
+  ]);
 
-  WriteLn(Format('obtype->name: %s ; obtype->obtype->name: %s ; obtype->obtype->obtype->name: %s', [
+  TLogger.DEBUG('obtype->name: %s ; obtype->obtype->name: %s ; obtype->obtype->obtype->name: %s', [
     obj.ob_type^.tp_name,
     obj.ob_type^.ob_type^.tp_name,
     obj.ob_type^.ob_type^.ob_type^.tp_name
 //      obj.ob_type^.tp_base^.tp_name,
 //      obj.ob_type^.tp_base^.tp_base^.tp_name,
 //      obj.ob_type^.tp_base^.tp_base^.tp_base^.tp_name
-  ]));
-  Flush(Output);
+  ]);
 
   var objtype := obj.ob_type;
+  var type_chain := '';
   while Assigned(objtype) do begin
-    Write('Typename: ', objtype^.tp_name, ' ; '); Flush(Output);
+    type_chain := type_chain + 'Typename: ' + string(objtype^.tp_name) + ' ; ';
     objtype := objtype^.tp_base;
   end;
-  Writeln;
+  TLogger.DEBUG(type_chain);
 
   objtype := obj.ob_type;
-  Write('DEALLOCs: ');
+  var dealloc_chain := 'DEALLOCs: ';
   while Assigned(objtype) do begin
-    Write(Format('%p ; ', [@objtype^.tp_dealloc])); Flush(Output);
+    dealloc_chain := dealloc_chain + Format('%p ; ', [@objtype^.tp_dealloc]);
     objtype := objtype^.tp_base;
   end;
-  Writeln;
+  TLogger.DEBUG(dealloc_chain);
 
-  WriteLn(Format('SIZES: PyObject: %d ; TPyObject: %d ; TPyObject.InstanceSize: %d ; obtype.basicsize: %d ;', [
+  TLogger.DEBUG('SIZES: PyObject: %d ; TPyObject: %d ; TPyObject.InstanceSize: %d ; obtype.basicsize: %d ;', [
      SizeOf(PyObject),
      SizeOf(TPyObject),
      TPyObject.InstanceSize,
      obj^.ob_type^.tp_basicsize
-  ]));
+  ]);
 
-  WriteLn(Format('POINTERS: PPyObject: %p ; TPyObject: %p ; tp_pythontype: %p', [
+  TLogger.DEBUG('POINTERS: PPyObject: %p ; TPyObject: %p ; tp_pythontype: %p', [
     Pointer(PAnsiChar(obj)),
     Pointer(PAnsiChar(obj)+Sizeof(PyObject)),
     obj.ob_type^.tp_pythontype
-  ]));
+  ]);
 
 end;
 

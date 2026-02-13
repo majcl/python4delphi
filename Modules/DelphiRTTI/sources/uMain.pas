@@ -13,6 +13,7 @@ uses
   System.SysUtils,
   WrapDelphi,
   WrapDelphiRTTI,
+  SimpleLogging,
   DelphiRTTIExceptions;
 
 var
@@ -59,7 +60,7 @@ begin
         if Assigned(gEngine) and gEngine.IsHandleValid then
           SetPythonError(gEngine.PyExc_RuntimeError^, 'DelphiRTTI init failed: %s: %s', [E.ClassName, E.Message])
         else
-          WriteLn(ErrOutput, 'DelphiRTTI init failed: ', E.ClassName, ': ', E.Message);
+          TLogger.ERROR('DelphiRTTI init failed: %s: %s', [E.ClassName, E.Message]);
         Exit(nil);
       end;
     end;

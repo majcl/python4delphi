@@ -20,6 +20,7 @@ function get_delphi_based_class(const obj: PPyObject): TClass;
 implementation
 
 uses
+    SimpleLogging,
     System.SyncObjs,
     System.TypInfo,
     System.Diagnostics,
@@ -316,7 +317,7 @@ begin
     );
 
   Result := PPointer(PByte(obj_ptr) + field_rtti.Offset)^;
-  Write(Format('[%p:%d] ...', [obj_ptr, field_rtti.Offset])); Flush(Output);
+  TLogger.DEBUG('[%p:%d] ...', [obj_ptr, field_rtti.Offset]);
 end;
 
 function _invoke_class_method(cls: TClass; method_name: AnsiString): TValue;
@@ -391,7 +392,7 @@ begin
   var py_object_class_ptr := _get_field_ptr(python_type_ptr, 'FPyObjectClass');
 
   var py_object_class := TClass(py_object_class_ptr);
-  Write(Format('TPyDelphiObject[%s] ...', [py_object_class.ClassName])); Flush(Output);
+  TLogger.DEBUG('TPyDelphiObject[%s] ...', [py_object_class.ClassName]);
 
   var value := _invoke_class_method(py_object_class, 'DelphiObjectClass');
   if not (value.Kind in [tkClass, tkClassRef]) then begin
@@ -426,21 +427,21 @@ begin
 //    var py_delphi_class := py_delphi_object.DelphiObjectClass;
 
     type_object := obj.ob_type;
-    Write('OBJECT...');
+    TLogger.DEBUG('    OBJECT...');
   end
   else if is_delphi_class(obj) then begin
     type_object := PPyTypeObject(obj);
-    Write('CLASS...');
+    TLogger.DEBUG('    CLASS...');
   end
   else
     raise EDelphiRTTIInvalidArgument.Create('Argument not Delphi based object.');
 
   var python_type_ptr := find_delphi_base_python_type(type_object);
-  Write(Format('[%p]', [python_type_ptr]));  Flush(Output);
+  TLogger.DEBUG('    %p', [python_type_ptr]);
 
-  Write('Converting...'); Flush(Output);
+  TLogger.DEBUG('Converting...');
   var delphi_type := convert_PythonTypePtr_to_TClass(python_type_ptr);
-  WriteLn(Format('Result type: %s', [delphi_type.ClassName])); Flush(Output);
+  TLogger.DEBUG(Format('Result type: %s', [delphi_type.ClassName]));
 
   Result := delphi_type;
 end;

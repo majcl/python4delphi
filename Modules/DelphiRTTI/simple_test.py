@@ -28,7 +28,11 @@ def rtti_get_type(ev_obj):
 
     # Detailed log of the argument and its value, so that we can see what is being passed to the Delphi function
     print(f"[rtti_get_type] Argument: {ev_obj!r} (type: {type(ev_obj).__name__})")
-    rtti_type = rtti.get_type(ev_obj)
+    try:
+        rtti_type = rtti.get_type_rtti(ev_obj)
+        print(f'    {rtti_type.Name}')
+    except Exception as e:
+        print(f'    ERROR: {e}')
     # print(f"[rtti_get_type] Result: {rtti_type!r} (type: {type(rtti_type).__name__})")
     # return rtti_type
 
