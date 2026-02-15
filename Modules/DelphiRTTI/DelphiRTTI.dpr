@@ -28,6 +28,7 @@ uses
   System.Rtti,
   uMain in 'sources\uMain.pas',
   WrapDelphiRTTI in 'sources\WrapDelphiRTTI.pas',
+  WrapSimpleLogging in 'sources\WrapSimpleLogging.pas',
   DelphiComponentDetection in 'sources\DelphiComponentDetection.pas',
   DelphiRTTIExceptions in 'sources\DelphiRTTIExceptions.pas',
   PythonObjectPrinter in 'sources\PythonObjectPrinter.pas' {,

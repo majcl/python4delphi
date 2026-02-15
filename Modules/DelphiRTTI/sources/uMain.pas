@@ -13,6 +13,7 @@ uses
   System.SysUtils,
   WrapDelphi,
   WrapDelphiRTTI,
+  WrapSimpleLogging,
   SimpleLogging,
   DelphiRTTIExceptions;
 
@@ -50,6 +51,7 @@ begin
       // Exec_Module, it sets Module.Module and calls ModuleReady on each
       // client type, which runs AddTypeVar and adds them to the module dict.
       RegisterDelphiRTTI(gModule, gDelphiWrapper);
+      RegisterSimpleLogging(gModule);
 
       // IMPORTANT: bind to the already-running interpreter
       gEngine.LoadDllInExtensionModule;
