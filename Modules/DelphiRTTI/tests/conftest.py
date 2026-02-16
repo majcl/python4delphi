@@ -111,6 +111,12 @@ def pytest_configure(config):
             "FATAL: DelphiRTTI.get_type_rtti is missing. "
             f"Detected library paths: {paths_text}"
         )
+    for diag_fn in ("get_method_names", "get_property_names"):
+        if not hasattr(rtti, diag_fn):
+            raise pytest.UsageError(
+                f"FATAL: DelphiRTTI.{diag_fn} is missing. "
+                f"Detected library paths: {paths_text}"
+            )
     if vcl is None and IS_WINDOWS:
         raise pytest.UsageError("FATAL: On Windows, delphivcl is required.")
     if fmx is None:

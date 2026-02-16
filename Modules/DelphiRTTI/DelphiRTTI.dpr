@@ -25,9 +25,11 @@ library DelphiRTTI;
 
 uses
   System.SysUtils,
-  System.Rtti,
+  { P4D patched: cross-module TCustomAttribute fix; all "uses System.Rtti" in this project resolve to this copy }
+  System.Rtti in 'sources\System.Rtti.pas',
   uMain in 'sources\uMain.pas',
   WrapDelphiRTTI in 'sources\WrapDelphiRTTI.pas',
+  WrapDelphiRTTI_DebugHelpers in 'sources\debug_helpers\WrapDelphiRTTI_DebugHelpers.pas',
   WrapSimpleLogging in 'sources\WrapSimpleLogging.pas',
   DelphiComponentDetection in 'sources\DelphiComponentDetection.pas',
   DelphiRTTIExceptions in 'sources\DelphiRTTIExceptions.pas',

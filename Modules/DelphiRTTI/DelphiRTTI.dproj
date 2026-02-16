@@ -1,4 +1,4 @@
-﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{1E42763A-BA82-4960-A278-76B769A45476}</ProjectGuid>
         <ProjectVersion>20.3</ProjectVersion>
@@ -175,6 +175,7 @@
         </DelphiCompile>
         <DCCReference Include="sources\uMain.pas"/>
         <DCCReference Include="sources\WrapDelphiRTTI.pas"/>
+        <DCCReference Include="sources\debug_helpers\WrapDelphiRTTI_DebugHelpers.pas"/>
         <DCCReference Include="sources\DelphiComponentDetection.pas"/>
         <DCCReference Include="sources\DelphiRTTIExceptions.pas"/>
         <DCCReference Include="sources\PythonObjectPrinter.pas">
