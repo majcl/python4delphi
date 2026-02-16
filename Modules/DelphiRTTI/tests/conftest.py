@@ -1,4 +1,4 @@
-"""Pytest configuration for DelphiRTTI tests."""
+"""Pytest configuration and shared fixtures for DelphiRTTI tests."""
 import gc
 import importlib
 import platform
@@ -13,6 +13,42 @@ IS_WINDOWS = platform.system() == "Windows"
 rtti = None
 vcl = None
 fmx = None
+
+# Shared component test data and helpers (used by test_rtti_core and test_debug_helpers)
+VCL_COMPONENT_CASES = [
+    {"class_name": "Form", "expected": "TForm", "method_names": ("ShowModal", "Show", "SetBounds"), "property_names": ("Caption", "Name", "Enabled")},
+    {"class_name": "Button", "expected": "TButton", "method_names": ("Click", "SetFocus", "Create"), "property_names": ("Caption", "Name", "Enabled")},
+    {"class_name": "Timer", "expected": "TTimer", "method_names": ("Create", "Destroy"), "property_names": ("Enabled", "Interval", "Name")},
+]
+FMX_COMPONENT_CASES = [
+    {"class_name": "Form", "expected": "TForm", "method_names": ("ShowModal", "Show", "SetBounds"), "property_names": ("Caption", "Name", "Visible")},
+    {"class_name": "Button", "expected": "TButton", "method_names": ("Create", "SetFocus", "Destroy"), "property_names": ("Text", "Name", "Enabled")},
+    {"class_name": "Timer", "expected": "TTimer", "method_names": ("Create", "Destroy"), "property_names": ("Enabled", "Interval", "Name")},
+]
+
+
+def _get_component_class(module, class_name):
+    cls = getattr(module, class_name, None)
+    if cls is not None:
+        return cls
+    pytest.fail(f"Required component class not found: {class_name}", pytrace=False)
+
+
+def _new_component(module, class_name):
+    cls = _get_component_class(module, class_name)
+    try:
+        return cls(None)
+    except Exception:
+        app = getattr(module, "Application", None)
+        if app is not None:
+            return cls(app)
+        raise
+
+
+def _get_component_by_kind(module, kind, class_name):
+    if kind == "instance":
+        return _new_component(module, class_name)
+    return _get_component_class(module, class_name)
 
 
 def _platform_dir():
@@ -111,12 +147,6 @@ def pytest_configure(config):
             "FATAL: DelphiRTTI.get_type_rtti is missing. "
             f"Detected library paths: {paths_text}"
         )
-    for diag_fn in ("get_method_names", "get_property_names"):
-        if not hasattr(rtti, diag_fn):
-            raise pytest.UsageError(
-                f"FATAL: DelphiRTTI.{diag_fn} is missing. "
-                f"Detected library paths: {paths_text}"
-            )
     if vcl is None and IS_WINDOWS:
         raise pytest.UsageError("FATAL: On Windows, delphivcl is required.")
     if fmx is None:

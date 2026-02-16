@@ -57,10 +57,10 @@ begin
   if Python.PyArg_ParseTuple(Args, 'O:get_type_rtti', @InputPythonObject) = 0 then
     Exit;
 
-  if not Assigned(GWrapper) then
-    raise EDelphiRTTIInternal.Create('Global Type Wrapper  not initialized!');
-
   try
+    if not Assigned(GWrapper) then
+      raise EDelphiRTTIInternal.Create('Global Type Wrapper  not initialized!');
+
     var AClass := get_delphi_based_class(InputPythonObject);
 
     var RttiType := GRttiContext.GetType(AClass);
