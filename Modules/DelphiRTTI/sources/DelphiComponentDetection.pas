@@ -1,4 +1,4 @@
-unit DelphiComponentDetection;
+﻿unit DelphiComponentDetection;
 
 interface
 
@@ -434,7 +434,7 @@ begin
     TLogger.DEBUG('    CLASS...');
   end
   else
-    raise EDelphiRTTIInvalidArgument.Create('Argument not Delphi based object.');
+    raise EDelphiRTTIInvalidArgument.Create('get_delphi_based_class(): Argument not Delphi based object.');
 
   var python_type_ptr := find_delphi_base_python_type(type_object);
   TLogger.DEBUG('    %p', [python_type_ptr]);

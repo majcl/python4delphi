@@ -45,49 +45,6 @@ var
 //  Core RTTI resolution
 // ============================================================================
 
-{ Helper: resolve the Delphi TClass + TRttiType from a Python argument.
-  Returns True on success, False when a Python exception has been set. }
-function ResolveRttiType(Args: PPyObject; const FuncName: AnsiString;
-  out AClass: TClass; out RttiType: TRttiType): Boolean;
-var
-  Arg: PPyObject;
-  ParseFmt: AnsiString;
-begin
-  Result := False;
-  AClass := nil;
-  RttiType := nil;
-
-  ParseFmt := 'O:' + FuncName;
-  with GetPythonEngine do
-  begin
-    if PyArg_ParseTuple(Args, PAnsiChar(ParseFmt), @Arg) = 0 then
-      Exit;
-
-    try
-      AClass := get_delphi_based_class(Arg);
-    except
-      on E: EDelphiRTTIInvalidArgument do
-      begin
-        SetPythonError(PyExc_TypeError^, E.Message);
-        Exit;
-      end;
-      on E: Exception do
-      begin
-        SetPythonError(PyExc_RuntimeError^, '%s: %s', [E.ClassName, E.Message]);
-        Exit;
-      end;
-    end;
-
-    RttiType := GRttiContext.GetType(AClass);
-    if RttiType = nil then
-    begin
-      SetPythonError(PyExc_RuntimeError^, 'RTTI type not found for %s', [AClass.ClassName]);
-      Exit;
-    end;
-  end;
-  Result := True;
-end;
-
 // ============================================================================
 //  Python-exported functions
 // ============================================================================
@@ -109,21 +66,12 @@ begin
     var RttiType := GRttiContext.GetType(AClass);
     if RttiType = nil then
       raise EDelphiRTTIInternal.CreateFmt(
-        'Can''t Create RTTI Type for known class: %s', [
-           AClass.ClassName
-        ]);
+        'Can''t Create RTTI Type for known class: %s', [AClass.ClassName]);
 
     Result := GWrapper.Wrap(RttiType, soReference);
-
   except
-    on E: EDelphiRTTIInvalidArgument do begin
-       SetPythonError(Python.PyExc_TypeError^, E.Message);
-    end;
-
-    on E: Exception do
-    begin
-      SetPythonError(Python.PyExc_RuntimeError^, 'Wrap failed: %s: %s', [E.ClassName, E.Message]);
-      Result := nil;
+    on E: Exception do begin
+       SetPythonError(E);
     end;
   end;
 end;
