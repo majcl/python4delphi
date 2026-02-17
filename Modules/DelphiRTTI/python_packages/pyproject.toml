@@ -1,0 +1,9 @@
+[project]
+name = "delphirtti-wheel-build"
+version = "0.0.0"
+description = "Build tooling and dependencies for DelphiRTTI wheel packaging"
+requires-python = ">=3.11"
+dependencies = [
+    "pyproject-metadata>=0.10.0",
+    "wheelfile>=0.0.9",
+]
