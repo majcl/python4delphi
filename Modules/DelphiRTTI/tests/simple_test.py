@@ -1,6 +1,4 @@
-
-
-"""Simple test for DelphiRTTI module."""
+"""Simple manual/debug test for DelphiRTTI — not picked up by pytest (filename does not match test_*.py)."""
 
 from pathlib import Path
 import sys
@@ -8,17 +6,16 @@ import sys
 import delphivcl as vcl
 import delphifmx as fmx
 
-# import the DelphiRTTI module from specific path
-delphirtti_path = Path(__file__).parent / 'pyd' / 'Win64' / 'Debug' / 'DelphiRTTI.pyd'
-if not delphirtti_path.exists():
-    raise FileNotFoundError(f"DelphiRTTI.pyd not found at {delphirtti_path}")
+# Module root is parent of tests/
+_root = Path(__file__).resolve().parent.parent
+delphirtti_pyd = _root / "pyd" / "Win64" / "Debug" / "DelphiRTTI.pyd"
+if not delphirtti_pyd.exists():
+    raise FileNotFoundError(f"DelphiRTTI.pyd not found at {delphirtti_pyd}")
 
-
-delphirtti_path = str(delphirtti_path.parent)
+delphirtti_path = str(delphirtti_pyd.parent)
 if delphirtti_path not in sys.path:
     sys.path.insert(0, delphirtti_path)
     print(f"Adding {delphirtti_path} to sys.path -> {sys.path}\n\n")
-
 
 import DelphiRTTI as rtti
 

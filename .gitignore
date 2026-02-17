@@ -50,3 +50,6 @@
 *.#00
 *.pch
 /Tests/TestInsightSettings.ini
+
+# Wheel build output (do not commit)
+dist/

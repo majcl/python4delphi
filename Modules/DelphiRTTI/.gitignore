@@ -1,0 +1,42 @@
+# True whitelist: ignore everything. Allow only explicit paths — no "allow all dirs".
+# Git never traverses into pyd/, .venv/, dist/, etc. because we never un-ignore them.
+
+*
+
+# ── Root: only these files ───────────────────────────────────────────
+!.gitignore
+!AGENTS.md
+!README_TESTS.md
+!BUILD_AND_TEST.md
+!build_all.bat
+!DelphiRTTI.dpr
+!DelphiRTTI.dproj
+!DelphiRTTI.res
+!DelphiRTTILibrary.groupproj
+
+# ── sources/ ──────────────────────────────────────────────────────────
+# Allow dir so git can descend; allow only .pas/.inc under it; allow subdirs so nested .pas are visible.
+!sources/
+!sources/**/
+!sources/**/*.pas
+!sources/**/*.inc
+# Exclude known non-source dirs under sources
+sources/_backup/
+sources/__history/
+
+# ── python_packages/ ──────────────────────────────────────────────────
+# Only these paths. No "**/" — so .venv/ and dist/ are never entered.
+!python_packages/
+!python_packages/build_wheels.py
+!python_packages/pyproject.toml
+!python_packages/uv.lock
+!python_packages/delphirtti/
+!python_packages/delphirtti/pyproject.toml
+!python_packages/delphirtti_debug/
+!python_packages/delphirtti_debug/pyproject.toml
+
+# ── tests/ ────────────────────────────────────────────────────────────
+!tests/
+!tests/**/
+!tests/**/*.py
+!tests/pyproject.toml
